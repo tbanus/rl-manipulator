@@ -1,7 +1,7 @@
 <mujoco model="aloha">
   <compiler angle="radian" meshdir="assets" autolimits="true"/>
 
-  <option cone="elliptic" impratio="10"/>
+  <!-- <option cone="elliptic" impratio="10"/> -->
 
   <asset>
     <material name="black" rgba="0.15 0.15 0.15 1"/>
@@ -29,11 +29,11 @@
         <position ctrlrange="-3.14158 3.14158" kp="43"/>
       </default>
       <default class="shoulder">
-        <joint range="-1.85005 1.25664" armature="0.395" frictionloss="2.0" damping="20.0" actuatorfrcrange="-144 144"/>
+        <joint range="-1.85005 1.25664" armature="0.395"  damping="20.0" actuatorfrcrange="-144 144"/>
         <position ctrlrange="-1.85005 1.25664" kp="265"/>
       </default>
       <default class="elbow">
-        <joint range="-1.76278 1.6057" armature="0.383" frictionloss="1.15" damping="18.49" actuatorfrcrange="-59 59"/>
+        <joint range="-1.76278 1.6057" armature="0.383"  damping="18.49" actuatorfrcrange="-59 59"/>
         <position ctrlrange="-1.76278 1.6057" kp="227"/>
       </default>
       <default class="forearm_roll">
@@ -84,7 +84,7 @@
         <geom type="mesh" contype="0" conaffinity="0" mass="0" group="2" material="black"/>
       </default>
       <default class="collision">
-        <geom group="3" type="mesh" condim="6" friction="1 5e-3 5e-4" solref=".01 1"/>
+        <geom group="3" type="mesh" condim="3" friction="1 5e-3 5e-4" solref=".01 1"/>
         <default class="sphere_collision">
           <geom type="sphere" size="0.0006" rgba="1 0 0 1" margin=".015" gap=".015"/>
         </default>
