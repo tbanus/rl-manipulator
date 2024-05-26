@@ -40,18 +40,18 @@ class MujocoSim:
         # weight_current_torque_cost= 1
         # weight_peak_torque_cost= 1
         # weight_timestep = 1
-        self.weights=jnp.array([1,1,1,1,1,0.1]).transpose()
+        self.weights=jnp.array([1,1,0,1,1,1]).transpose()
         self.load_dest=jnp.array([1,1,1]).transpose()
 
         self.max_allowable_distance=4
         self.max_allowable_target_error=0.1
-        self.peak_torque=0
+        # self.peak_torque=0
 
         self.mjx_model = mjx.put_model(self.mj_model)
         self.mjx_data = mjx.put_data(self.mj_model, self.mj_data)
 
-        self.p=jnp.zeros([3,6]) #TODO 
-        self.J=jnp.zeros([3,6])
+        # self.p=jnp.zeros([3,6]) #TODO 
+        # self.J=jnp.zeros([3,6])
     def reset(self):
         # Reset the environment to the initial state
         self.mj_model = mujoco.MjModel.from_xml_path('simple_arm/scene.xml')
@@ -85,7 +85,7 @@ class MujocoSim:
         data.replace(ctrl=action)
         data=mjx.step(model, data)
         state=self.get_state(data)
-        print("stepact", action)
+        # self.peak_torque=jnp.max(jnp.array([self.peak_torque, norm(jnp.array([action[0:6]]))**2]))
         return state, self.get_reward(state,action)
            
         # fun_vmapped = jax.vmap(step, in_axes=(None,0,0))
@@ -100,15 +100,13 @@ class MujocoSim:
     
     def get_reward(self, state, action):
         #update peak torque
-        print("action", action)
-        self.peak_torque=max([self.peak_torque, norm(jnp.array([action[0:6]]))**2])
+        
         
         rewards= sum([self.weights[0]*norm(state[7:10]-self.load_dest), 
-                    self.weights[1]*norm(state[7:10]-jnp.matmul(self.p,state[0:6])),
-                    self.weights[2]*norm(jnp.matmul(self.J,state[0:6])-state[22:25]) ,
+                    self.weights[1]*norm(state[7:10]-self.mjx_data.geom_xpos[16]),
+                    self.weights[2]*norm(self.mjx_data.geom_xpos[16]-state[22:25]) ,
                     self.weights[3]*norm(action[0:6])**2 ,
-                    self.weights[4]*self.peak_torque ,
-                    self.weights[5]*1])
+                    self.weights[4]*1])
         return rewards
         
     def get_state(self,data : mujoco.mjx.Data):
@@ -117,12 +115,10 @@ class MujocoSim:
         # print(state.shape)
         return jnp.array(state)
     def isnt_done(self,state):
-        print("isnt done\n" , state)
         rb = jnp.array(state[7:10]).transpose()
-        print(rb)
         rd=self.load_dest
         rm=jnp.array([0,0,0]).transpose()
-        print(self.max_allowable_distance-norm(rb-rm))
+
         a=max([self.max_allowable_distance-norm(rb-rm),0]) 
             
         b=max([norm(rb-rd)-self.max_allowable_target_error,0])
