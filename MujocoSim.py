@@ -40,7 +40,7 @@ class MujocoSim:
         # weight_current_torque_cost= 1
         # weight_peak_torque_cost= 1
         # weight_timestep = 1
-        self.weights=jnp.array([1,1,0,1,1,1]).transpose()
+        self.weights=jnp.array([-1,-45,0,1,1,1]).transpose()
         self.load_dest=jnp.array([1,1,1]).transpose()
 
         self.max_allowable_distance=4
@@ -77,20 +77,22 @@ class MujocoSim:
         # Execute the action and return the new state and reward
         # rng = jax.random.PRNGKey(0)
         # rng = jax.random.split(rng,1024)
-        # print(rng.shape)
+
 
         # fun=lambda rng: mjx_data.replace(ctrl=jax.random.uniform(rng, (8,)))
         # fun_vmapped = jax.vmap(fun)
         # batch=fun_vmapped(rng)
-        data.replace(ctrl=action)
+        data.replace(ctrl=action*10)
+
         data=mjx.step(model, data)
+
         state=self.get_state(data)
+        reward= self.get_reward(state,action)
         # self.peak_torque=jnp.max(jnp.array([self.peak_torque, norm(jnp.array([action[0:6]]))**2]))
-        return state, self.get_reward(state,action)
+        return state, reward, data
            
         # fun_vmapped = jax.vmap(step, in_axes=(None,0,0))
         # batch=fun_vmapped(mjx_model, batch,rng)
-        # print("next, I shall jit step")
         # jit_step = jax.jit(jax.vmap(step, in_axes=(None, 0,0)))
         # batch = jit_step(mjx_model, batch,rng)
 
@@ -99,21 +101,18 @@ class MujocoSim:
         batch = self.step(self.mjx_model, self.mjx_data, actions)
     
     def get_reward(self, state, action):
-        #update peak torque
+        #update peak torque(
         
-        
-        rewards= sum([self.weights[0]*norm(state[7:10]-self.load_dest), 
+        return sum([self.weights[0]*norm(state[7:10]-self.load_dest), 
                     self.weights[1]*norm(state[7:10]-self.mjx_data.geom_xpos[16]),
                     self.weights[2]*norm(self.mjx_data.geom_xpos[16]-state[22:25]) ,
                     self.weights[3]*norm(action[0:6])**2 ,
                     self.weights[4]*1])
-        return rewards
         
-    def get_state(self,data : mujoco.mjx.Data):
+    def get_state(self,data):
 
         state=jnp.concatenate([data.qpos[0:7],data.qpos[7:14],data.qvel[0:7], data.qpos[7:13]])
-        # print(state.shape)
-        return jnp.array(state)
+        return state
     def isnt_done(self,state):
         rb = jnp.array(state[7:10]).transpose()
         rd=self.load_dest

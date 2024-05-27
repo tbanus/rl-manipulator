@@ -169,12 +169,12 @@
   </worldbody>
 
   <actuator>
-    <motor  name="motor1" joint="joint1" ctrlrange="-2.61799 2.61799"/>
-    <motor  name="motor2" joint="joint2" ctrlrange="0 2.96706" />
-    <motor  name="motor3" joint="joint3" ctrlrange="-20.87979 0"/>
-    <motor  name="motor4" joint="joint4" ctrlrange="-10.51844 10.51844"/>
-    <motor  name="motor5" joint="joint5" ctrlrange="-1.3439 1.3439"/>
-    <motor  name="motor6" joint="joint6" ctrlrange="-2.79253 2.79253"/>
+    <motor  name="motor1" joint="joint1" ctrlrange="-10 10"/>
+    <motor  name="motor2" joint="joint2" ctrlrange="-10 10"/>
+    <motor  name="motor3" joint="joint3" ctrlrange="-10 10"/>
+    <motor  name="motor4" joint="joint4" ctrlrange="-10 10"/>
+    <motor  name="motor5" joint="joint5" ctrlrange="-10 10"/>
+    <motor  name="motor6" joint="joint6" ctrlrange="-10 10"/>
 
     <motor name="finger_r" joint="joint_right" ctrlrange="-3 3"/>
     <motor name="finger_l" joint="joint_left" ctrlrange="-3 3"/>
