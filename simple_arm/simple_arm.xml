@@ -160,7 +160,7 @@
     </body>
     <body name="load" pos="0.3 0 0.0198922" childclass="z1">
       <freejoint name="load_joint" />
-      <inertial pos="0 0 0" quat="0.0 0.0 0.0 1.0" mass="0.3" diaginertia="0.144005 0.380679 0.447682 "/>
+      <inertial pos="0 0 0" quat="0.0 0.0 0.0 1.0" mass="0.3" diaginertia="0.00221 0.00221 0.00221 "/>
 
       <geom type="box" size="0.02 0.02 0.02"  name="load_geom"/>
 
