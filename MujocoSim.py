@@ -82,7 +82,7 @@ class MujocoSim:
         # fun=lambda rng: mjx_data.replace(ctrl=jax.random.uniform(rng, (8,)))
         # fun_vmapped = jax.vmap(fun)
         # batch=fun_vmapped(rng)
-        data.replace(ctrl=action*10)
+        data.replace(ctrl=action)
 
         data=mjx.step(model, data)
 

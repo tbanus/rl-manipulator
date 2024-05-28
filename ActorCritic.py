@@ -9,7 +9,10 @@ from MujocoSim import MujocoSim
 import numpy as np
 import csv
 import os
-
+def clip_grads(grads, max_norm):
+    norm = jnp.sqrt(sum(jnp.sum(g ** 2) for g in grads.values()))
+    clip_coef = jnp.minimum(1.0, max_norm / (norm + 1e-6))
+    return {k: v * clip_coef for k, v in grads.items()}
 # Network definitions
 @jit
 def actor_network(params, state):
@@ -44,7 +47,7 @@ critic_params = initialize_params(input_dim, hidden_dim, output_dim_critic)
 jax.config.update("jax_debug_nans", True)
 
 class ActorCritic:
-    def __init__(self, env : MujocoSim, actor_params : dict, critic_params : dict, lr : float=1):
+    def __init__(self, env : MujocoSim, actor_params : dict, critic_params : dict, lr : float=0.01):
         self.env = env
         self.actor_params = actor_params
         self.critic_params = critic_params
@@ -52,49 +55,55 @@ class ActorCritic:
 
     # @jit
     def select_action(self, state,actor_params):
-        # return actor_network(actor_params, state)
-        return jnp.ones([7,1])
+        return actor_network(actor_params, state)
+        # return jnp.ones([7,1])
     # @jit
     def update(self, state, action, reward, next_state, actor_params, critic_params):
+        gamma = 0.99  # Discount factor
+        max_grad_norm = 1.0  # Adjust as needed
+
         # Compute TD target
         value = critic_network(critic_params, state)
         next_value = critic_network(critic_params, next_state)
-        td_target = reward + 0.9 * next_value  # gamma = 0.99
+        td_target = reward + gamma * next_value
         td_error = td_target - value
+
+
         # print("tderr", td_error)
         # print("value", value)
         # print("reward",reward)
         # Update critic
         def critic_loss(params):
-            return critic_network(params, state)[0]
+            value = critic_network(params, state)
+            return jnp.mean((td_target - value) ** 2)
 
-        tde=(reward + 0.9 * critic_network(critic_params, next_state) - critic_network(critic_params, state)[0])
+        # tde=(reward + 0.9 * critic_network(critic_params, next_state) - critic_network(critic_params, state)[0])
 
 
-        critic_grads = grad(critic_loss)(self.critic_params)
-        critic_params = {k: critic_params[k] + self.lr *tde* critic_grads[k] for k in critic_params}
-        # print(critic_params)
-        # print(reward)
-        # print(f"State shape: {state.shape}")
-        # print(f"Action shape: {action.shape}")
-        # print(f"Reward shape: {reward.shape}")
-        # print(f"Next state shape: {next_state.shape}")
-        # print(f"value: {value}, td_error: {td_error},  reward: {reward}")
+        critic_grads = grad(critic_loss)(critic_params)
+        critic_grads = clip_grads(critic_grads, max_grad_norm)
 
-        # Update actor
+        critic_params = {k: critic_params[k] + self.lr * critic_grads[k] for k in critic_params}
+
+
         key = jax.random.PRNGKey(0)
-        std_devs=jnp.ones([7,1])*50
-        def actor_loss(params):
-            
-            pi_means = actor_network(params, state)   
-            samples=jax.random.normal(key,(1,7))
-            pi = samples * std_devs + pi_means
+        std_devs=jnp.ones([1,7])*50
 
-            log_pi = jnp.log(jnp.where(jnp.abs(pi)<0.001, pi, 0.0001))
+
+
+        def actor_loss(params):
+              
+            pi=jnp.abs(jax.random.normal(key,(1,7))*std_devs+actor_network(actor_params, state)[0])
+
+            pi=jnp.where(pi>0.01, pi, 0.01)
+            log_pi = jnp.log(pi)
+
             # print("logpi",log_pi)
-            return -jnp.mean(log_pi * td_error)
+            return jnp.mean(log_pi * td_error)
       
         actor_grads = grad(actor_loss)(actor_params)
+        actor_grads = clip_grads(actor_grads, max_grad_norm)
+
         # print("actorgrad",actor_grads)
         # print("acc", actor_grads)
         # for k in actor_params:
@@ -103,7 +112,7 @@ class ActorCritic:
         #         print(i)
         pi = actor_network(actor_params, state)   
 
-        actor_params = {k: actor_params[k]  + 10*self.lr * actor_grads[k] for k in actor_params}
+        actor_params = {k: actor_params[k]  + self.lr * actor_grads[k] for k in actor_params}
         # actor_params['b2']=actor_params['b2']*pi
         # pi = actor_network(actor_params, state)   
         
@@ -114,7 +123,7 @@ class ActorCritic:
     def batch_train(self, episodes=1000, batch_size=1024):
         
         select_action=jax.vmap(self.select_action, in_axes=(0,None))
-        step=jax.vmap(self.env.step, in_axes=(None,0,0))
+        
    
         update=jax.jit(self.update)
         # update_vmap=self.update
@@ -122,7 +131,7 @@ class ActorCritic:
 
         batch=jax.vmap(lambda rng: self.env.mjx_data.replace(ctrl=jax.random.uniform(rng, (8,))))(jax.random.split(jax.random.PRNGKey(0),batch_size))
         get_state=jax.vmap(self.env.get_state)
-        step=jax.jit(step)
+        step=jax.jit(jax.vmap(self.env.step, in_axes=(None,0,0)))
         for episode in range(episodes):
             
             state = get_state(batch)
@@ -141,7 +150,6 @@ class ActorCritic:
 
                 action = select_action(state, self.actor_params)
 
-                
                 next_state, reward, batch = step(self.env.mjx_model, batch, action)
                 
                 # jax.debug.print(f"next_state.shape {next_state.shape} mean {jnp.mean(next_state, axis=0)}")
@@ -199,7 +207,7 @@ class ActorCritic:
                 
     
 
-
+                print(f"action: {action}")
                 self.log_line(state,action,reward)
                 
                 # batched_mj_data = mjx.get_data(self.env.mj_model, batch)    
@@ -234,8 +242,7 @@ class ActorCritic:
             data_f = open('logs/'+filename, 'a',newline='')
             data_writer = csv.writer(data_f)
     def log_newline(self):    
-        self.log_text=self.log_text+"0\n"
-        
+        self.log_text=self.log_text+"0\n"        
     def log_line(self, state, action, reward):
 
         LogList=[]
@@ -285,3 +292,4 @@ ac = ActorCritic(env, actor_params, critic_params)
 batch_train=jax.jit(ac.batch_train)
 # batch_train()
 ac.batch_train()
+# ac.train()
