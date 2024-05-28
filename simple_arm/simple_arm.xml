@@ -137,13 +137,13 @@
                   <geom class="visual" mesh="z1_Link06"/>
                   <geom size="0.0325 0.0325 0.0255" pos="0.0255 0 0" quat="1 0 1 0" class="collision"/>
                   <body name="finger_right" pos="0.08 0 0.025">
-                    <joint name="joint_right" axis="0 0 -1" range="0 0.02 " type="slide"  damping="0.5" springdamper="15 0.05" />
+                    <joint name="joint_right" axis="0 0 -1" range="0 0.02 " type="slide"  damping="0.5"  />
                     <inertial pos="0.0241569 -0.00017355 -0.00143876" quat="0.998779 0.0457735 -0.00663717 0.0173548"
                     mass="0.288758" diaginertia="0.00018333 0.000147464 0.000146786"/>
                     <geom type="box" size="0.03 0.02 0.003" pos="0.0 0 0" quat="1 0 0 0" />
                   </body>
                   <body name="finger_left" pos="0.08 0 -0.025">
-                    <joint name="joint_left" axis="0 0 1" range="0 0.02" type="slide"  damping="0.5" springdamper="15 0.05"/>
+                    <joint name="joint_left" axis="0 0 1" range="0 0.02" type="slide"  damping="0.5" />
                     <geom type="box" size="0.03 0.02 0.003" pos="0.0 0 0" quat="1 0 0 0" />
                     <inertial pos="0.0241569 -0.00017355 -0.00143876" quat="0.998779 0.0457735 -0.00663717 0.0173548"
                     mass="0.288758" diaginertia="0.00018333 0.000147464 0.000146786"/>
@@ -158,7 +158,7 @@
         </body>
       </body>
     </body>
-    <body name="load" pos="0.3 0 0.05" childclass="z1">
+    <body name="load" pos="0.3 0 0.0198922" childclass="z1">
       <freejoint name="load_joint" />
       <inertial pos="0 0 0" quat="0.0 0.0 0.0 1.0" mass="0.3" diaginertia="0.144005 0.380679 0.447682 "/>
 
@@ -180,6 +180,12 @@
     <motor name="finger_l" joint="joint_left" ctrlrange="-3 3"/>
 
   </actuator>
+  <keyframe>
+
+  <key name="neutral_pose" qpos="
+    16e-6 -0.0007421 -0.047 0.06 -4e-05  2.33e-5 0.0009 0
+    5 0 0.0198922 1 0 0 0"/>
+  </keyframe>
   <contact>
     <!-- <exclude body1="link00" body2="link02" />
     <exclude body1="link00" body2="link03" />

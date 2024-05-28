@@ -29,6 +29,7 @@ class MujocoSim:
         # 6: finger torque
 
         self.mj_model = mujoco.MjModel.from_xml_path('simple_arm/scene.xml')
+        
         self.mj_model.opt.solver = mujoco.mjtSolver.mjSOL_CG
         self.mj_model.opt.iterations = 6
         self.mj_model.opt.ls_iterations = 6
@@ -49,6 +50,8 @@ class MujocoSim:
 
         self.mjx_model = mjx.put_model(self.mj_model)
         self.mjx_data = mjx.put_data(self.mj_model, self.mj_data)
+        self.mjx_data.replace(qpos=jnp.array([16e-6, -0.0007421, -0.047, 0.06 ,-4e-05 , 2.33e-5, 0.0009 ,0 ,3, 0 ,0.0198922, 1 ,0, 0 ,0]))
+
 
         # self.p=jnp.zeros([3,6]) #TODO 
         # self.J=jnp.zeros([3,6])
@@ -68,6 +71,8 @@ class MujocoSim:
 
         self.mjx_model = mjx.put_model(self.mj_model)
         self.mjx_data = mjx.put_data(self.mj_model, self.mj_data)
+        self.mjx_data.replace(qpos=jnp.array([16e-6, -0.0007421, -0.047, 0.06 ,-4e-05 , 2.33e-5, 0.0009 ,0 ,5, 0 ,0.0198922, 1 ,0, 0 ,0]))
+    
 
         
         return self.get_state(self.mjx_data)
@@ -83,7 +88,8 @@ class MujocoSim:
         # fun_vmapped = jax.vmap(fun)
         # batch=fun_vmapped(rng)
         data.replace(ctrl=action)
-
+        for i in range(3):
+            mjx.step(model, data)
         data=mjx.step(model, data)
 
         state=self.get_state(data)

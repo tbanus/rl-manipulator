@@ -9,18 +9,22 @@ from MujocoSim import MujocoSim
 import numpy as np
 import csv
 import os
+os.environ["XLA_PYTHON_CLIENT_PREALLOCATE"] = "false" 
 def clip_grads(grads, max_norm):
     norm = jnp.sqrt(sum(jnp.sum(g ** 2) for g in grads.values()))
     clip_coef = jnp.minimum(1.0, max_norm / (norm + 1e-6))
     return {k: v * clip_coef for k, v in grads.items()}
 # Network definitions
-@jit
+# @jit
 def actor_network(params, state):
+
+    # print(f"state {state}, w1 {params['W1']}, b1 {params['b1']}")
+    
     hidden = relu(jnp.dot(state, params['W1']) + params['b1'])
     logits = jnp.dot(hidden, params['W2']) + params['b2']
     return softmax(logits)
 
-@jit
+# @jit
 def critic_network(params, state):
 
     hidden = relu(jnp.dot(state, params['W1']) + params['b1'])
@@ -44,7 +48,7 @@ output_dim_critic = 1  # Single value output
 
 actor_params = initialize_params(input_dim, hidden_dim, output_dim_actor)
 critic_params = initialize_params(input_dim, hidden_dim, output_dim_critic)
-jax.config.update("jax_debug_nans", True)
+# jax.config.update("jax_debug_nans", True)
 
 class ActorCritic:
     def __init__(self, env : MujocoSim, actor_params : dict, critic_params : dict, lr : float=0.01):
@@ -120,7 +124,7 @@ class ActorCritic:
         return actor_params, critic_params
 
 
-    def batch_train(self, episodes=1000, batch_size=1024):
+    def batch_train(self, episodes=1, batch_size=1024):
         
         select_action=jax.vmap(self.select_action, in_axes=(0,None))
         
@@ -132,8 +136,8 @@ class ActorCritic:
         batch=jax.vmap(lambda rng: self.env.mjx_data.replace(ctrl=jax.random.uniform(rng, (8,))))(jax.random.split(jax.random.PRNGKey(0),batch_size))
         get_state=jax.vmap(self.env.get_state)
         step=jax.jit(jax.vmap(self.env.step, in_axes=(None,0,0)))
+        # step=jax.vmap(self.env.step, in_axes=(None,0,0))
         for episode in range(episodes):
-            
             state = get_state(batch)
             #done = false
             action = select_action(state, self.actor_params)
@@ -146,8 +150,8 @@ class ActorCritic:
             frames=[]
             framerate=100
             print("ep", episode)
-            for i in range(100):
-
+            for i in range(10):
+                print(i)
                 action = select_action(state, self.actor_params)
 
                 next_state, reward, batch = step(self.env.mjx_model, batch, action)
@@ -161,21 +165,30 @@ class ActorCritic:
                     for key in critic_params:
                         self.critic_params[key]=critic_params[key]
                 state = next_state
+        print(f"state shape {state.shape}")
                 
     
+    
 
-
-                self.log_line(jnp.mean(state, axis=0), jnp.mean(action, axis=0), jnp.mean(reward, axis=0))
+                # self.log_line(jnp.mean(c, axis=0), jnp.mean(action, axis=0), jnp.mean(reward, axis=0))
+                # batched_mj_data = mjx.get_data(self.env.mj_model, batch)    
+                # mj_data=batched_mj_data[0]
+                # renderer.update_scene(mj_data)
+                # pixels = renderer.render()
+                # frames.append(pixels)
+            # media.show_video(frames, fps=framerate)
                 
                 # batched_mj_data = mjx.get_data(self.env.mj_model, batch)
 
-    def train(self, episodes=100):
+    def train(self, episodes=1):
    
+        reset=jax.jit(self.env.reset())
 
         for episode in range(episodes):
-            
+            reset()
             batch=self.env.mjx_data.replace(ctrl=jnp.ones([8]))
-            state = self.env.get_state(self.env.mjx_data)
+            
+            state = jnp.zeros(8)
 
             done = False
             action = self.select_action(state, self.actor_params)
@@ -188,7 +201,7 @@ class ActorCritic:
             frames=[]
             framerate=100
             print("ep", episode)
-            for i in range(100):
+            for i in range(10):
 
                 action = self.select_action(state, self.actor_params)
 
@@ -210,9 +223,8 @@ class ActorCritic:
                 print(f"action: {action}")
                 self.log_line(state,action,reward)
                 
-                # batched_mj_data = mjx.get_data(self.env.mj_model, batch)    
-            # media.show_video(frames, fps=framerate)
-    # def update_parameters(self, actor_params, critic_params):
+
+    # def update_parameters(self, mm, critic_params):
 
     def log_header(self,state, action, reward):
         header_text=[]
@@ -254,7 +266,31 @@ class ActorCritic:
             LogList.append(str(i)) 
         LogList.append(reward) 
         self.data_writer.writerow(LogList) 
-            
+    def save_parameters(self):
+        LogList=[]
+        # print(f"next_state.shape {state.shape} mean {str(state)}")
+        
+        filename="params.csv"
+        file = 'logs/'+filename
+        try:
+            os.remove (file)
+            data_f = open('logs/'+filename, 'a',newline='')
+        except FileNotFoundError:
+            data_f = open('logs/'+filename, 'x',newline='')
+        # LogList.append(state)
+        data_writer = csv.writer(data_f)
+        for key in self.actor_params:
+            LogList.append(key)
+            for item in self.actor_params[key]:
+                LogList.append(str(item))
+        # print(f"next_state.shape {state.shape} mean {str(state)}")
+        # LogList.append(state)
+        for key in self.critic_params:
+            LogList.append(key)
+            for item in self.actor_params[key]:
+                LogList.append(str(item))
+        
+        data_writer.writerow(LogList)
         # Vectorized operations using vmap
         # v_update = vmap(self.update, in_axes=(0, 0, 0, 0))
         # v_update(states, actions, rewards, next_states)
@@ -264,7 +300,50 @@ class ActorCritic:
     # def batch_select_action(self, states):
     #     # Vectorized action selection
     #     v_select = vmap(self.select_action)
-    #     return self.v_select(states)
+    #     return self.v_se lect(states)
+    def use_parameters(self):
+        self.env.reset()
+        if(1):
+            batch=self.env.mjx_data.replace(ctrl=jnp.ones([8]))
+            
+            state = jnp.zeros(27)
+
+            done = False
+            action = self.select_action(state, self.actor_params)
+            next_state, reward, batch = self.env.step(self.env.mjx_model, batch, action)
+            if 1:
+              self.log_header(state,action,reward)
+            renderer = mujoco.Renderer(self.env.mj_model)
+
+
+            frames=[]
+            framerate=100
+            print("use_parameters", 1)
+            for i in range(100):
+
+                action = self.select_action(state, self.actor_params)
+
+                
+                next_state, reward, batch = self.env.step(self.env.mjx_model, batch, action)
+
+                # jax.debug.print(f"next_state.shape {next_state.shape} mean {jnp.mean(next_state, axis=0)}")
+                # for i in range(1):    
+                #     actor_params, critic_params = self.update(state, action, reward, next_state, self.actor_params, self.critic_params)
+                #     for key in actor_params:
+                #         self.actor_params[key]=actor_params[key]
+
+                #     for key in critic_params:
+                #         self.critic_params[key]=critic_params[key]
+                state = next_state
+                # self.log_line(jnp.mean(state, axis=0), jnp.mean(action, axis=0), jnp.mean(reward, axis=0))
+                mj_data = mjx.get_data(self.env.mj_model, batch)    
+                # mj_data=batched_mj_data[0]
+                renderer.update_scene(mj_data)
+                pixels = renderer.render()
+                frames.append(pixels)
+                self.log_line(state,action,reward)               
+            media.show_video(frames, fps=framerate)
+
 
 
 
@@ -292,4 +371,13 @@ ac = ActorCritic(env, actor_params, critic_params)
 batch_train=jax.jit(ac.batch_train)
 # batch_train()
 ac.batch_train()
+ac.save_parameters()
+print("n")
+print(f"state{ac.actor_params['W1'].shape}")
+print(f"state{ac.actor_params['b1'].shape}")
+
+print(f"state{ac.actor_params['W1'].shape}")
+
+ac.use_parameters()
+
 # ac.train()
